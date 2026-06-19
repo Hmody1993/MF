@@ -63,6 +63,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val terminalAlert: StateFlow<String?> = _terminalAlert.asStateFlow()
 
     // Control States (All high-performance modules are enabled by default for ultra-smooth trading)
+    val isMasterAutoTradingEnabled = MutableStateFlow(true)
     val isClaudeSentinelEnabled = MutableStateFlow(true)
     val isHftCoProcessorEnabled = MutableStateFlow(true)
     val isRapidSwapEnabled = MutableStateFlow(true)
@@ -76,6 +77,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // Arbitrage Trading & Cross-Exchange differential scanning module
     val isArbitrageEnabled = MutableStateFlow(true)
+
+    fun setAllTradingState(enabled: Boolean) {
+        isMasterAutoTradingEnabled.value = enabled
+        isClaudeSentinelEnabled.value = enabled
+        isHftCoProcessorEnabled.value = enabled
+        isRapidSwapEnabled.value = enabled
+        isOsintScraperEnabled.value = enabled
+        isSuperFastScalperEnabled.value = enabled
+        isNewCoinSniperEnabled.value = enabled
+        isArbitrageEnabled.value = enabled
+    }
 
     // Metric Lists for Real-time Chart rendering (Canvas)
     private val _tpsMetrics = MutableStateFlow<List<Float>>(List(25) { Random.nextFloat() * 15 + 10 })
@@ -144,6 +156,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val baseDelay = if (isSuperFastScalperEnabled.value) 1200L else 4000L
             val variance = if (isSuperFastScalperEnabled.value) 400L else 2000L
             delay(baseDelay + Random.nextLong(variance))
+
+            if (!isMasterAutoTradingEnabled.value) {
+                continue
+            }
 
             if (!isOsintScraperEnabled.value) continue
 

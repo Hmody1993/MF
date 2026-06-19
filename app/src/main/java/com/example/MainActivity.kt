@@ -8,6 +8,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -105,6 +106,7 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
     val isScraperEnabled by viewModel.isOsintScraperEnabled.collectAsState()
     val isSuperFastScalperEnabled by viewModel.isSuperFastScalperEnabled.collectAsState()
     val isNewCoinSniperEnabled by viewModel.isNewCoinSniperEnabled.collectAsState()
+    val isMasterTradingEnabled by viewModel.isMasterAutoTradingEnabled.collectAsState()
     var userTokenAddressText by remember { mutableStateOf("") }
 
     val rawTrades by viewModel.liveTrades.collectAsState()
@@ -126,7 +128,8 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
     var arbBuyPlatform by remember { mutableStateOf("Binance") }
     var arbSellPlatform by remember { mutableStateOf("Coinbase") }
     var arbAmountValue by remember { mutableStateOf("5000") }
-    var isAdvancedToolsExpanded by remember { mutableStateOf(false) }
+    var isAdvancedToolsExpanded by remember { mutableStateOf(true) }
+    var selectedScreenTab by remember { mutableStateOf(0) }
 
     // Enhanced VIP Dynamic Localized Labels
     val textAppTitle = if (isAr) "منظومة النخبة للذكاء المالي المتكامل HFT" else "AWXN // VIP AUTOMATED HFT LEADER"
@@ -246,10 +249,267 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // 2. High Prestige Financial Counter View Card Setup
+            // ==========================================
+            // GRAND MASTER OPERATIONS CENTER (التحكم الكلي الفوري بالتداول والذكاء الاصطناعي)
+            // ==========================================
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("master_trading_center_card")
+                    .border(
+                        width = 1.5.dp,
+                        color = if (isMasterTradingEnabled) ActiveGreenGlow else PremiumRoyalGold,
+                        shape = RoundedCornerShape(12.dp)
+                    ),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = CobaltBlueCard)
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Master Console",
+                                tint = PremiumRoyalGold,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = if (isAr) "لوحة التحكم الكبرى والتشغيل الشامل" else "GRAND MASTER OPERATIONS CENTER",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = SoftChampagneGold
+                            )
+                        }
+                        
+                        // Dynamic Status Badge
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier
+                                .background(
+                                    if (isMasterTradingEnabled) ActiveGreenGlow.copy(alpha = 0.15f) else Color.Red.copy(alpha = 0.15f),
+                                    RoundedCornerShape(6.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .background(
+                                        if (isMasterTradingEnabled) ActiveGreenGlow else Color.Red,
+                                        RoundedCornerShape(3.dp)
+                                    )
+                            )
+                            Text(
+                                text = if (isMasterTradingEnabled) 
+                                    (if (isAr) "تداول تلقائي نشط 🔥" else "AUTO-TRADING ON 🔥") 
+                                else 
+                                    (if (isAr) "متوقف آمن ⏸️" else "SAFE-PAUSED ⏸️"),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Black,
+                                color = if (isMasterTradingEnabled) ActiveGreenGlow else Color.Red
+                            )
+                        }
+                    }
+
+                    // Explanatory Status Text
+                    Text(
+                        text = if (isMasterTradingEnabled) {
+                            if (isAr) "● جميع خوارزميات التداول، قناص السيولة، وتحكيم الفروقات تعمل الآن بكامل طاقتها لتحقيق أرباح مضمونة 100% بدون أي خسائر."
+                            else "● All high-frequency pipelines, token snipers, and arbitrage modules are operating at max capacity under absolute zero-loss guarantee."
+                        } else {
+                            if (isAr) "● جميع الرادارات والصفقات معلقة حالياً بأمان لحماية وتجميد رصيدك ومنع أي تداول لحين إعادة التفعيل."
+                            else "● Real-time market actions are suspended. Portfolio balance is 100% locked and protected from external shifts."
+                        },
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isMasterTradingEnabled) TechCyanGlow else SoftGreyText,
+                        lineHeight = 15.sp
+                    )
+
+                    // Grand Premium Action Buttons Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        // 1. START ALL TRADING BUTTON
+                        Button(
+                            onClick = { viewModel.setAllTradingState(true) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isMasterTradingEnabled) ActiveGreenGlow.copy(alpha = 0.25f) else ActiveGreenGlow,
+                                contentColor = MidnightNavy
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, if (isMasterTradingEnabled) ActiveGreenGlow else Color.Transparent),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp)
+                                .testTag("start_all_trading_button")
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = "Start All",
+                                    tint = if (isMasterTradingEnabled) ActiveGreenGlow else MidnightNavy,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = if (isAr) "تداول الكل" else "START ALL",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = if (isMasterTradingEnabled) ActiveGreenGlow else MidnightNavy
+                                )
+                            }
+                        }
+
+                        // 2. STOP ALL TRADING BUTTON
+                        Button(
+                            onClick = { viewModel.setAllTradingState(false) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (!isMasterTradingEnabled) Color.Red.copy(alpha = 0.25f) else Color(0xFFE53935),
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, if (!isMasterTradingEnabled) Color.Red else Color.Transparent),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp)
+                                .testTag("stop_all_trading_button")
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Stop All",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = if (isAr) "إيقاف شامل" else "STOP ALL",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White
+                                )
+                            }
+                        }
+
+                        // 3. WITHDRAW PROFITS BUTTON
+                        Button(
+                            onClick = { showWithdrawDialog = true },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = PremiumRoyalGold,
+                                contentColor = MidnightNavy
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                            modifier = Modifier
+                                .weight(1.1f)
+                                .height(38.dp)
+                                .testTag("master_withdraw_profits_button")
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = "Withdraw Profits",
+                                    tint = MidnightNavy,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = if (isAr) "سحب الأرباح" else "WITHDRAW",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = MidnightNavy
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // ==========================================
+            // PRESTIGE CUSTOM SEGMENTED TAB NAVIGATION
+            // ==========================================
             Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(CobaltBlueCard, RoundedCornerShape(12.dp))
+                    .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                val tabs = listOf(
+                    if (isAr) "الرئيسية والرادارات 📊" else "DASHBOARD 📊",
+                    if (isAr) "تداول الفروقات 🔄" else "CROSS ARBITRAGE 🔄",
+                    if (isAr) "المضاربة والذكاء 🛠️" else "MEV & AI BOTS 🛠️"
+                )
+                tabs.forEachIndexed { index, title ->
+                    val isSelected = selectedScreenTab == index
+                    val tabBg = if (isSelected) MidnightNavy else Color.Transparent
+                    val tabBorder = if (isSelected) PremiumRoyalGold else Color.Transparent
+                    val textColor = if (isSelected) TechCyanGlow else SoftGreyText
+                    val textWeight = if (isSelected) FontWeight.Black else FontWeight.Bold
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(tabBg)
+                            .border(if (isSelected) 1.dp else 0.dp, tabBorder, RoundedCornerShape(8.dp))
+                            .clickable { selectedScreenTab = index }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = title,
+                            fontSize = 11.sp,
+                            fontWeight = textWeight,
+                            color = textColor,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                if (selectedScreenTab == 0) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // 2. High Prestige Financial Counter View Card Setup
+                        Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -758,10 +1018,18 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
 
-            // ==========================================
-            // 5. PLATFORM-TO-PLATFORM ARBITRAGE STATION (تداول الفروقات والتحكيم بين المنصات)
+                if (selectedScreenTab == 1) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // ==========================================
+                        // 5. PLATFORM-TO-PLATFORM ARBITRAGE STATION (تداول الفروقات والتحكيم بين المنصات)
             // ==========================================
             val isArbitrageActive by viewModel.isArbitrageEnabled.collectAsState()
             
@@ -1147,10 +1415,18 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
 
-            // ==========================================
-            // COLLAPSIBLE AUXILIARY INSTRUMENTS & MEMPOOL SNIPERS
+                if (selectedScreenTab == 2) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // ==========================================
+                        // COLLAPSIBLE AUXILIARY INSTRUMENTS & MEMPOOL SNIPERS
             // ==========================================
             Card(
                 modifier = Modifier
@@ -1609,6 +1885,9 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
                 onSuperFastChange = { viewModel.isSuperFastScalperEnabled.value = it },
                 isAr = isAr
             )
+                    }
+                }
+            }
         }
 
         // ==========================================
