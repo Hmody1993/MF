@@ -1,0 +1,6 @@
+{
+  "name": "HFT Intelligence Terminal",
+  "description": "A simulated real-time High-Frequency Trading (HFT) and news frontrunning intelligence terminal. Connects to Gemini API for live OSINT sentiment analysis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
