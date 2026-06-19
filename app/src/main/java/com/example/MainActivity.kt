@@ -1977,8 +1977,7 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
                                         .background(ActiveGreenGlow.copy(alpha = 0.12f))
                                         .border(1.dp, ActiveGreenGlow, RoundedCornerShape(6.dp))
                                         .clickable {
-                                            viewModel.depositFunds(amt, if (isAr) "قيمة سريعة" else "Quick Preset")
-                                            showDepositDialog = false
+                                            depositAmountValue = amt.toInt().toString()
                                         }
                                         .padding(vertical = 10.dp),
                                     contentAlignment = Alignment.Center
@@ -2202,7 +2201,7 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
                             onValueChange = { depositAmountValue = it },
                             label = {
                                 Text(
-                                    text = if (isAr) "مبلغ الشحن المخصص ($)" else "Custom Credit Deposit Input ($)",
+                                    text = if (isAr) "مبلغ الشحن المخصص ($) [الحد الأدنى 1$]" else "Custom Credit Deposit Input ($) [Min $1]",
                                     fontFamily = FontFamily.SansSerif,
                                     fontSize = 11.sp
                                 )
@@ -2242,14 +2241,14 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
                             Button(
                                 onClick = {
                                     val amtDbl = depositAmountValue.toDoubleOrNull()
-                                    if (amtDbl != null && amtDbl > 0) {
+                                    if (amtDbl != null && amtDbl >= 1.0) {
                                         val sourceChannel = paymentOptions[selectedChannel] + 
                                             if (txHashValue.isNotBlank()) " [TXID: ${txHashValue.take(12)}...]" else ""
                                         viewModel.depositFunds(amtDbl, sourceChannel)
                                     }
                                     showDepositDialog = false
                                 },
-                                enabled = depositAmountValue.toDoubleOrNull() != null,
+                                enabled = (depositAmountValue.toDoubleOrNull() ?: 0.0) >= 1.0,
                                 colors = ButtonDefaults.buttonColors(containerColor = ActiveGreenGlow),
                                 shape = RoundedCornerShape(6.dp),
                                 modifier = Modifier.weight(1f)
@@ -2342,8 +2341,7 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
                                         .background(PremiumRoyalGold.copy(alpha = 0.12f))
                                         .border(1.dp, PremiumRoyalGold, RoundedCornerShape(6.dp))
                                         .clickable {
-                                            viewModel.withdrawFunds(amt, if (isAr) "رصيد سريع" else "Quick preset withdrawal")
-                                            showWithdrawDialog = false
+                                            withdrawAmountValue = amt.toInt().toString()
                                         }
                                         .padding(vertical = 10.dp),
                                     contentAlignment = Alignment.Center
@@ -2509,7 +2507,7 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
                             onValueChange = { withdrawAmountValue = it },
                             label = {
                                 Text(
-                                    text = if (isAr) "قيمة السحب المطلوب بالدولار ($)" else "Input Custom Liquidate Amount ($)",
+                                    text = if (isAr) "قيمة السحب المطلوب بالدولار ($) [الحد الأدنى 1$]" else "Input Custom Liquidate Amount ($) [Min $1]",
                                     fontFamily = FontFamily.SansSerif,
                                     fontSize = 11.sp
                                 )
@@ -2574,7 +2572,7 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
                             Button(
                                 onClick = {
                                     val amtDbl = withdrawAmountValue.toDoubleOrNull()
-                                    if (amtDbl != null && amtDbl > 0) {
+                                    if (amtDbl != null && amtDbl >= 1.0) {
                                         val destString = bankAccountNum.ifBlank { "Auto Setup Address" }
                                         val finalRoute = "${withdrawOptions[selectedWithdrawChannel]} [$destString] " + 
                                             if (withdrawSpeedSelection == 0) "⚡VIP" else "Standard Check"
@@ -2582,7 +2580,7 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
                                     }
                                     showWithdrawDialog = false
                                 },
-                                enabled = withdrawAmountValue.toDoubleOrNull() != null,
+                                enabled = (withdrawAmountValue.toDoubleOrNull() ?: 0.0) >= 1.0,
                                 colors = ButtonDefaults.buttonColors(containerColor = PremiumRoyalGold),
                                 shape = RoundedCornerShape(6.dp),
                                 modifier = Modifier.weight(1f)

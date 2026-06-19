@@ -112,6 +112,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             startMetricsLoop()
         }
+
+        // Run passive network partner & user affiliate commission loop (10% on simulated other members)
+        viewModelScope.launch {
+            startAffiliateCommissionLoop()
+        }
     }
 
     private suspend fun startSimulationLoop() {
@@ -310,6 +315,82 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private suspend fun startAffiliateCommissionLoop() {
+        val userNames = listOf(
+            "أبو فهد الحبيبي", "المستثمر_VIP_89", "Client_Node_712", "VIP_Investor_303", 
+            "مستثمر نخبة #12", "أبو يوسف", "الشيخ فهد الملكي", "ApexScout_89", "SmartHedge_9", 
+            "سلطان بن خالد", "أبو ماجد العتيبي", "VIP_Trader_Dubai"
+        )
+        val channels = listOf("USDT (TRC-20)", "USDT (ERC-20)", "BTC Network", "ETH Network", "Solana (SOL)", "IBAN Bank Direct")
+        
+        while (true) {
+            delay(15000L + Random.nextLong(10000L)) // Every 15 to 25 seconds
+            
+            val randomUser = userNames.random()
+            val randomChannel = channels.random()
+            val isDeposit = Random.nextBoolean()
+            
+            // Realistic large transaction from other members ($2,000 to $45,000)
+            val txAmount = (2000 + Random.nextInt(43000)).toDouble()
+            val commission = txAmount * 0.10 // 10%
+            
+            withContext(Dispatchers.IO) {
+                val actionAr = if (isDeposit) "عملية شحن مخصصة" else "عملية سحب وتسييل"
+                val actionEn = if (isDeposit) "custom deposit" else "liquidate withdrawal"
+                
+                // 1. Add news notification to the pipeline
+                val newsHeadline = if (isArabic.value) {
+                    "رصد $actionAr من [ $randomUser ] عبر $randomChannel بقيمة $${String.format("%,.0f", txAmount)}. تم قيد عمولة الشريك الفورية 10% (+$${String.format("%,.2f", commission)}) في محفظتك تلقائياً! 💰"
+                } else {
+                    "Detected $actionEn from [ $randomUser ] via $randomChannel for $${String.format("%,.0f", txAmount)}. Your instant 10% affiliate commission (+$${String.format("%,.2f", commission)}) credited directly! 💰"
+                }
+                
+                repository.insertNews(
+                    NewsPipelineEntity(
+                        headline = newsHeadline,
+                        sentiment = "BULLISH",
+                        score = 1.0,
+                        detectedBy = if (isArabic.value) "موزع العمولات الذكي 🔗" else "Affiliate Distribution Node 🔗",
+                        timestamp = System.currentTimeMillis()
+                    )
+                )
+                
+                // 2. Insert into trade history as an Affiliate Commission
+                repository.insertTrade(
+                    TradeEntity(
+                        market = "CRYPTO",
+                        type = "BUY",
+                        profit = commission,
+                        deltaMs = 1,
+                        timestamp = System.currentTimeMillis(),
+                        source = if (isArabic.value) {
+                            "عمولة شبكة 10%: $actionAr لـ $randomUser"
+                        } else {
+                            "10% Network Fee: $actionEn from $randomUser"
+                        }
+                    )
+                )
+                
+                // 3. Update the live portfolio balance
+                _portfolioBalance.value += commission
+                
+                // 4. Trigger a beautiful flash alert on the screen so they see it instantly!
+                _lastProfitFlash.value = "+$${String.format("%,.2f", commission)} 🔗"
+                
+                // 5. Briefly show terminal notice
+                _terminalAlert.value = if (isArabic.value) {
+                    "🔗 عمولة شبكة: تلقيت مكافأة 10% (+$${String.format("%,.2f", commission)}) من تداول $randomUser"
+                } else {
+                    "🔗 Network Reward: Received 10% fee (+$${String.format("%,.2f", commission)}) from $randomUser"
+                }
+                
+                delay(3500)
+                _lastProfitFlash.value = null
+                _terminalAlert.value = null
+            }
+        }
+    }
+
     fun selectSubscription(market: String) {
         _activeSubscription.value = market
     }
@@ -321,7 +402,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun depositFunds(amount: Double, sourceName: String = "") {
-        if (amount <= 0) return
+        if (amount < 1.0) {
+            viewModelScope.launch {
+                _terminalAlert.value = if (isArabic.value) "✖ تنبيه الأمان: الحد الأدنى للإيداع هو $1" else "✖ Security Notice: Minimum deposit limit is $1"
+                delay(3000)
+                _terminalAlert.value = null
+            }
+            return
+        }
         viewModelScope.launch {
             _portfolioBalance.value += amount
             val timestamp = System.currentTimeMillis()
@@ -358,7 +446,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun withdrawFunds(amount: Double, destinationSource: String = ""): Boolean {
-        if (amount <= 0) return false
+        if (amount < 1.0) {
+            viewModelScope.launch {
+                _terminalAlert.value = if (isArabic.value) "✖ تنبيه الأمان: الحد الأدنى للسحب هو $1" else "✖ Security Notice: Minimum withdrawal limit is $1"
+                delay(3000)
+                _terminalAlert.value = null
+            }
+            return false
+        }
         if (_portfolioBalance.value < amount) {
             viewModelScope.launch {
                 _terminalAlert.value = if (isArabic.value) "✖ تنبيه الحماية: الرصيد غير كافٍ لإجراء سحب لـ $${String.format("%,.2f", amount)}" else "✖ Security Notice: Insufficient balance to authorize $${String.format("%,.2f", amount)}"
