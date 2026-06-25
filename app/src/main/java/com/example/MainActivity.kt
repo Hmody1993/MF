@@ -4,9 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -100,6 +103,11 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
     val selectedMarket by viewModel.activeSubscription.collectAsState()
 
+    val totalCommissions by viewModel.totalAffiliateCommissions.collectAsState()
+    val partnerLevel by viewModel.partnerUpgradeLevel.collectAsState()
+    val isSoundEnabled by viewModel.isSoundChimesEnabled.collectAsState()
+    val directReferrals by viewModel.directReferralsCount.collectAsState()
+
     val isClaudeEnabled by viewModel.isClaudeSentinelEnabled.collectAsState()
     val isHftEnabled by viewModel.isHftCoProcessorEnabled.collectAsState()
     val isSwapEnabled by viewModel.isRapidSwapEnabled.collectAsState()
@@ -123,6 +131,11 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
     var showDepositDialog by remember { mutableStateOf(false) }
     var showWithdrawDialog by remember { mutableStateOf(false) }
 
+    // Staking calculator states
+    var stakingPrincipal by remember { mutableStateOf(5000.0) }
+    var stakingDays by remember { mutableStateOf(90f) }
+    var showStakedReceipt by remember { mutableStateOf(false) }
+
     // Interactivity state elements for tactile manual arbitrage
     var arbSelectedToken by remember { mutableStateOf("BTC") }
     var arbBuyPlatform by remember { mutableStateOf("Binance") }
@@ -130,6 +143,30 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
     var arbAmountValue by remember { mutableStateOf("5000") }
     var isAdvancedToolsExpanded by remember { mutableStateOf(true) }
     var selectedScreenTab by remember { mutableStateOf(0) }
+
+    // Shifting Neon glow brushes
+    val infiniteTransition = rememberInfiniteTransition(label = "terminal_glow")
+    val glowOffset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1500f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(12000, easing = androidx.compose.animation.core.LinearEasing),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "glow_offset"
+    )
+
+    val goldShiftingBrush = Brush.linearGradient(
+        colors = listOf(PremiumRoyalGold, TechCyanGlow, ActiveGreenGlow, PremiumRoyalGold),
+        start = androidx.compose.ui.geometry.Offset(glowOffset, 0f),
+        end = androidx.compose.ui.geometry.Offset(glowOffset + 600f, 600f)
+    )
+
+    val cyanShiftingBrush = Brush.linearGradient(
+        colors = listOf(TechCyanGlow, ActiveGreenGlow, PremiumRoyalGold, TechCyanGlow),
+        start = androidx.compose.ui.geometry.Offset(glowOffset, 0f),
+        end = androidx.compose.ui.geometry.Offset(glowOffset + 600f, 600f)
+    )
 
     // Enhanced VIP Dynamic Localized Labels
     val textAppTitle = if (isAr) "منظومة النخبة للذكاء المالي المتكامل HFT" else "AWXN // VIP AUTOMATED HFT LEADER"
@@ -462,9 +499,10 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 val tabs = listOf(
-                    if (isAr) "الرئيسية والرادارات 📊" else "DASHBOARD 📊",
-                    if (isAr) "تداول الفروقات 🔄" else "CROSS ARBITRAGE 🔄",
-                    if (isAr) "المضاربة والذكاء 🛠️" else "MEV & AI BOTS 🛠️"
+                    if (isAr) "الرئيسية 📊" else "DASHBOARD 📊",
+                    if (isAr) "الفروقات 🔄" else "ARBITRAGE 🔄",
+                    if (isAr) "المضاربة 🛠️" else "MEV BOTS 🛠️",
+                    if (isAr) "الشركاء 🔗" else "PARTNERS 🔗"
                 )
                 tabs.forEachIndexed { index, title ->
                     val isSelected = selectedScreenTab == index
@@ -521,9 +559,7 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
                         .background(CobaltBlueCard, RoundedCornerShape(10.dp))
                         .border(
                             width = 1.5.dp, 
-                            brush = Brush.verticalGradient(
-                                colors = listOf(PremiumRoyalGold, CobaltBlueCard)
-                            ), 
+                            brush = goldShiftingBrush, 
                             shape = RoundedCornerShape(10.dp)
                         )
                         .padding(10.dp)
@@ -672,7 +708,7 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
                         .weight(0.8f)
                         .height(145.dp)
                         .background(CobaltBlueCard, RoundedCornerShape(10.dp))
-                        .border(1.dp, PremiumRoyalGold.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                        .border(1.dp, cyanShiftingBrush, RoundedCornerShape(10.dp))
                         .padding(10.dp)
                 ) {
                     Column(
@@ -1038,7 +1074,7 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
                     .fillMaxWidth()
                     .border(
                         1.5.dp, 
-                        brush = Brush.horizontalGradient(listOf(PremiumRoyalGold, TechCyanGlow)), 
+                        brush = cyanShiftingBrush, 
                         shape = RoundedCornerShape(12.dp)
                     )
                     .shadow(4.dp, RoundedCornerShape(12.dp)),
@@ -1762,6 +1798,397 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
 
             Spacer(modifier = Modifier.height(4.dp))
 
+            // ==========================================
+            // INTERACTIVE AI YIELD COMPOUND CALCULATOR (مستشار عوائد الاستثمار التراكمي الذكي)
+            // ==========================================
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, goldShiftingBrush, RoundedCornerShape(12.dp)),
+                colors = CardDefaults.cardColors(containerColor = CobaltBlueCard),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                val calculatedApy = if (stakingDays <= 30f) 18 else if (stakingDays <= 90f) 32 else if (stakingDays <= 180f) 48 else 75
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "Yield Optimizer",
+                                tint = PremiumRoyalGold,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = if (isAr) "مستشار العوائد المركبة وحساب الأرباح المتوقعة 📈" else "INTELLIGENT COMPOUND STAKING OPTIMIZER 📈",
+                                fontFamily = FontFamily.SansSerif,
+                                fontSize = 11.sp,
+                                color = SoftChampagneGold,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        // APY Tier Indicator
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(ActiveGreenGlow.copy(alpha = 0.15f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "APY: $calculatedApy%",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Black,
+                                color = ActiveGreenGlow,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = if (isAr) 
+                            "قم بمحاكاة عوائد السيولة التراكمية المضمونة بنسبة 100% عبر تحكيم جيميناي فائق السرعة. حدد مبلغ الاستثمار والمدة لرؤية نسبة نمو محفظتك التقديرية:" 
+                            else "Simulate dynamic 100% secure compound interest liquidity pool returns managed by Gemini AI. Adjust investment level and lock duration below:",
+                        fontSize = 10.sp,
+                        color = SoftGreyText,
+                        lineHeight = 14.sp
+                    )
+
+                    // Principal Quick Presets
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val presets = listOf(1000.0, 5000.0, 20000.0, 100000.0)
+                        presets.forEach { amt ->
+                            val isSelected = stakingPrincipal == amt
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isSelected) PremiumRoyalGold else CobaltBlueCard)
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isSelected) PremiumRoyalGold else Color.White.copy(alpha = 0.08f),
+                                        shape = RoundedCornerShape(6.dp)
+                                    )
+                                    .clickable {
+                                        stakingPrincipal = amt
+                                        viewModel.playNotificationSound()
+                                    }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "$${String.format("%,.0f", amt)}",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = if (isSelected) MidnightNavy else Color.White
+                                )
+                            }
+                        }
+                    }
+
+                    // Interactive duration slider
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isAr) "مدة قيد السيولة (الأيام):" else "Staking Lock Duration (Days):",
+                            fontSize = 10.sp,
+                            color = SoftGreyText,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "${stakingDays.toInt()} ${if (isAr) "يوم" else "Days"}",
+                            fontSize = 12.sp,
+                            color = TechCyanGlow,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+
+                    Slider(
+                        value = stakingDays,
+                        onValueChange = {
+                            stakingDays = it
+                        },
+                        valueRange = 15f..365f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = PremiumRoyalGold,
+                            activeTrackColor = PremiumRoyalGold,
+                            inactiveTrackColor = Color.White.copy(alpha = 0.08f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // Dynamic Result Metrics Cards
+                    val durationFactor = stakingDays / 365f
+                    val rate = if (stakingDays <= 30f) 0.18 else if (stakingDays <= 90f) 0.32 else if (stakingDays <= 180f) 0.48 else 0.75
+                    val estimatedInterest = stakingPrincipal * rate * durationFactor
+                    val estimatedTotal = stakingPrincipal + estimatedInterest
+                    val dailyReturn = (stakingPrincipal * rate) / 365.0
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Net Profit Box
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .background(MidnightNavy, RoundedCornerShape(8.dp))
+                                .border(0.5.dp, ActiveGreenGlow.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                                .padding(10.dp)
+                        ) {
+                            Column {
+                                Text(
+                                    text = if (isAr) "صافي الأرباح المتوقعة" else "NET INTEREST PROFIT",
+                                    fontSize = 9.sp,
+                                    color = SoftGreyText,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "+$${String.format("%,.2f", estimatedInterest)}",
+                                    fontSize = 13.sp,
+                                    color = ActiveGreenGlow,
+                                    fontWeight = FontWeight.Black,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+
+                        // Total Value Box
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .background(MidnightNavy, RoundedCornerShape(8.dp))
+                                .border(0.5.dp, TechCyanGlow.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                                .padding(10.dp)
+                        ) {
+                            Column {
+                                Text(
+                                    text = if (isAr) "إجمالي قيمة المحفظة" else "TOTAL MATURED VALUE",
+                                    fontSize = 9.sp,
+                                    color = SoftGreyText,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "$${String.format("%,.2f", estimatedTotal)}",
+                                    fontSize = 13.sp,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Black,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+
+                    // Daily Compound Accrual Alert line
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(TechCyanGlow.copy(alpha = 0.05f), RoundedCornerShape(6.dp))
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isAr) "متوسط العائد اليومي المتراكم:" else "Average Daily Compound Accrual:",
+                            fontSize = 9.sp,
+                            color = SoftGreyText,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "+$${String.format("%,.2f", dailyReturn)} / ${if (isAr) "يوميا" else "Day"}",
+                            fontSize = 10.sp,
+                            color = TechCyanGlow,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+
+                    // Dynamic Lock Button
+                    Button(
+                        onClick = {
+                            viewModel.playNotificationSound()
+                            showStakedReceipt = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = ActiveGreenGlow),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Lock",
+                                tint = MidnightNavy,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = if (isAr) "تأكيد ربط العوائد الذكي والسيولة 🔐" else "LOCK INVESTED LIQUIDITY YIELD 🔐",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black,
+                                color = MidnightNavy
+                            )
+                        }
+                    }
+
+                    // Holographic Staking Receipt
+                    AnimatedVisibility(
+                        visible = showStakedReceipt,
+                        enter = fadeIn(),
+                        exit = fadeOut()
+                    ) {
+                        val randomHash = "0x" + List(40) { "0123456789abcdef".random() }.joinToString("")
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MidnightNavy, RoundedCornerShape(8.dp))
+                                .border(1.dp, PremiumRoyalGold, RoundedCornerShape(8.dp))
+                                .padding(12.dp)
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (isAr) "📜 إيصال ربط السيولة الذكية التراكمية" else "📜 LIQUIDITY LOCK CONFIRMED",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = SoftChampagneGold
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Close",
+                                        tint = SoftGreyText,
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .clickable { showStakedReceipt = false }
+                                    )
+                                }
+
+                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.08f)))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = if (isAr) "القيمة الأساسية المقفلة:" else "Locked Principal Amount:",
+                                        fontSize = 9.sp,
+                                        color = SoftGreyText
+                                    )
+                                    Text(
+                                        text = "$${String.format("%,.2f", stakingPrincipal)}",
+                                        fontSize = 9.sp,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = if (isAr) "فترة ربط السيولة:" else "Staking Maturity Period:",
+                                        fontSize = 9.sp,
+                                        color = SoftGreyText
+                                    )
+                                    Text(
+                                        text = "${stakingDays.toInt()} ${if (isAr) "يوم" else "Days"}",
+                                        fontSize = 9.sp,
+                                        color = TechCyanGlow,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = if (isAr) "العوائد المقدرة المستحقة:" else "Est. Net Accrued Yield:",
+                                        fontSize = 9.sp,
+                                        color = SoftGreyText
+                                    )
+                                    Text(
+                                        text = "+$${String.format("%,.2f", estimatedInterest)} (APY $calculatedApy%)",
+                                        fontSize = 9.sp,
+                                        color = ActiveGreenGlow,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = if (isAr) "معرّف المعاملة الآمنة (بلوكشين):" else "Secured Node Block Hash:",
+                                        fontSize = 8.sp,
+                                        color = SoftGreyText
+                                    )
+                                    Text(
+                                        text = randomHash,
+                                        fontSize = 8.sp,
+                                        color = PremiumRoyalGold,
+                                        fontFamily = FontFamily.Monospace,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(ActiveGreenGlow.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+                                        .border(0.5.dp, ActiveGreenGlow.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                                        .padding(6.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = "Success",
+                                        tint = ActiveGreenGlow,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = if (isAr) "تم تفعيل القفل وتأمين العوائد بنجاح!" else "CONTRACT ACTIVE & LIQUIDITY LOCKED!",
+                                        fontSize = 9.sp,
+                                        color = ActiveGreenGlow,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
             // Dual Columns structured side-by-side representing logs and scrapings
             Row(
                 modifier = Modifier
@@ -1854,6 +2281,448 @@ fun LuxuryTerminalDashboard(viewModel: MainViewModel = viewModel()) {
                                 items(rawNews) { news ->
                                     LuxuryNewsRowItem(news, isAr)
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (selectedScreenTab == 3) {
+                val coroutineScope = rememberCoroutineScope()
+                val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+                var showCopiedRefAlert by remember { mutableStateOf(false) }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // 1. Elite Network Overview Card
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, goldShiftingBrush, RoundedCornerShape(12.dp)),
+                        colors = CardDefaults.cardColors(containerColor = CobaltBlueCard),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(
+                                text = if (isAr) "▪ إحصائيات شبكة العمولات النخبوية 🔗" else "▪ ELITE NETWORK FEES OVERVIEW 🔗",
+                                fontFamily = FontFamily.SansSerif,
+                                fontSize = 12.sp,
+                                color = SoftChampagneGold,
+                                fontWeight = FontWeight.Black
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // Cumulative Earnings Box
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .background(MidnightNavy, RoundedCornerShape(8.dp))
+                                        .border(0.5.dp, TechCyanGlow.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                                        .padding(10.dp)
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = if (isAr) "مجموع عمولات الشبكة" else "TOTAL EARNED FEES",
+                                            fontSize = 9.sp,
+                                            color = SoftGreyText,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "$${String.format("%,.2f", totalCommissions)}",
+                                            fontSize = 15.sp,
+                                            color = ActiveGreenGlow,
+                                            fontWeight = FontWeight.Black,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                }
+
+                                // Active Referrals Box
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .background(MidnightNavy, RoundedCornerShape(8.dp))
+                                        .border(0.5.dp, TechCyanGlow.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                                        .padding(10.dp)
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = if (isAr) "الأعضاء المباشرين" else "DIRECT REFERRALS",
+                                            fontSize = 9.sp,
+                                            color = SoftGreyText,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "$directReferrals ${if (isAr) "عضو نشط" else "members"}",
+                                            fontSize = 14.sp,
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Black
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Active level card
+                            val activeRate = if (partnerLevel == 1) "10%" else if (partnerLevel == 2) "12%" else "15%"
+                            val activeRankName = if (partnerLevel == 1) {
+                                    if (isAr) "رتبة شريك فضي" else "SILVER LEVEL"
+                            } else if (partnerLevel == 2) {
+                                    if (isAr) "رتبة شريك ذهبي" else "GOLD LEVEL"
+                            } else {
+                                    if (isAr) "رتبة شريك بلاتيني" else "PLATINUM LEVEL"
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(PremiumRoyalGold.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                                    .border(0.5.dp, PremiumRoyalGold.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                    .padding(10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = if (isAr) "معدل عمولتك النشط حالياً" else "YOUR ACTIVE COMMISSION FEE RATE",
+                                        fontSize = 9.sp,
+                                        color = SoftChampagneGold,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = activeRankName,
+                                        fontSize = 12.sp,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                }
+                                Text(
+                                    text = activeRate,
+                                    fontSize = 24.sp,
+                                    color = PremiumRoyalGold,
+                                    fontWeight = FontWeight.Black,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+
+                    // 2. Interactive Upgrade Rank Button Card
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(12.dp)),
+                        colors = CardDefaults.cardColors(containerColor = CobaltBlueCard),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                text = if (isAr) "▪ ترقية رتبة الشريك وزيادة نسبة الأرباح" else "▪ UPGRADE LEVEL & BOOST COMMISSION %",
+                                fontFamily = FontFamily.SansSerif,
+                                fontSize = 11.sp,
+                                color = TechCyanGlow,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Text(
+                                text = if (isAr) 
+                                    "كلما قمت بترقية رتبتك النخبوية، زادت نسبة عمولتك المستقطعة من إيداعات وسحوبات الأعضاء الآخرين في شبكتك العالمية تلقائياً."
+                                    else "Upgrading your elite level increments the percentage fee you directly capture from all other member deposits and withdrawals instantly.",
+                                fontSize = 10.sp,
+                                color = SoftGreyText,
+                                lineHeight = 14.sp
+                            )
+
+                            if (partnerLevel < 3) {
+                                val upgradeCost = if (partnerLevel == 1) 5000.0 else 12000.0
+                                val nextRate = if (partnerLevel == 1) "12%" else "15%"
+                                val nextRankLabel = if (partnerLevel == 1) {
+                                    if (isAr) "ترقية إلى الرتبة الذهبية ($nextRate)" else "UPGRADE TO GOLD RANK ($nextRate)"
+                                } else {
+                                    if (isAr) "ترقية إلى الرتبة البلاتينية ($nextRate)" else "UPGRADE TO PLATINUM RANK ($nextRate)"
+                                }
+
+                                Button(
+                                    onClick = { viewModel.upgradePartnerRank() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PremiumRoyalGold),
+                                    shape = RoundedCornerShape(6.dp)
+                                ) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Star,
+                                            contentDescription = "Upgrade",
+                                            tint = MidnightNavy,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = "$nextRankLabel | تكلفة: $${String.format("%,.0f", upgradeCost)}",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = MidnightNavy
+                                        )
+                                    }
+                                }
+                            } else {
+                                // Maximum level active
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(ActiveGreenGlow.copy(alpha = 0.08f), RoundedCornerShape(6.dp))
+                                        .border(1.dp, ActiveGreenGlow.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                                        .padding(10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = "Maxed",
+                                            tint = ActiveGreenGlow,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = if (isAr) "لقد بلغت الرتبة البلاتينية القصوى (15% عمولة فورية) 🏆" else "MAXIMUM PLATINUM LEVEL ACTIVE (15% FEE) 🏆",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = ActiveGreenGlow
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 3. Interactive Notification Sound FX Control
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(12.dp)),
+                        colors = CardDefaults.cardColors(containerColor = CobaltBlueCard),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (isSoundEnabled) Icons.Default.PlayArrow else Icons.Default.Close,
+                                    contentDescription = "Sound FX",
+                                    tint = if (isSoundEnabled) TechCyanGlow else SoftGreyText,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Column {
+                                    Text(
+                                        text = if (isAr) "تنبيهات الصوت الفورية 🔔" else "TACTILE AUDIO CHIMES 🔔",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        text = if (isAr) "إصدار رنين فوري عند دخول أي عمولة لمحفظتك" else "Play direct electronic tone on incoming commission",
+                                        fontSize = 9.sp,
+                                        color = SoftGreyText
+                                    )
+                                }
+                            }
+
+                            Switch(
+                                checked = isSoundEnabled,
+                                onCheckedChange = {
+                                    viewModel.isSoundChimesEnabled.value = it
+                                    if (it) {
+                                        viewModel.playNotificationSound()
+                                    }
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = TechCyanGlow,
+                                    checkedTrackColor = TechCyanGlow.copy(alpha = 0.3f),
+                                    uncheckedThumbColor = SoftGreyText,
+                                    uncheckedTrackColor = Color.White.copy(alpha = 0.08f)
+                                )
+                            )
+                        }
+                    }
+
+                    // 4. Interactive Referral Copy Box
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(12.dp)),
+                        colors = CardDefaults.cardColors(containerColor = CobaltBlueCard),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = if (isAr) "▪ رابط الإحالة النخبوي للشبكة العالمية" else "▪ ELITE REFERRAL NETWORK LINK",
+                                fontFamily = FontFamily.SansSerif,
+                                fontSize = 11.sp,
+                                color = SoftChampagneGold,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            val referralUrl = "https://hft-terminal.awxn/partner?ref=Elite_Agent_72"
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(MidnightNavy, RoundedCornerShape(6.dp))
+                                    .border(0.5.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = referralUrl,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = TechCyanGlow,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(PremiumRoyalGold.copy(alpha = 0.15f))
+                                        .border(1.dp, PremiumRoyalGold, RoundedCornerShape(4.dp))
+                                        .clickable {
+                                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(referralUrl))
+                                            viewModel.playNotificationSound()
+                                            showCopiedRefAlert = true
+                                            coroutineScope.launch {
+                                                delay(2500)
+                                                showCopiedRefAlert = false
+                                            }
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = if (showCopiedRefAlert) {
+                                            if (isAr) "تم النسخ! ✓" else "Copied! ✓"
+                                        } else {
+                                            if (isAr) "نسخ الرابط" else "COPY"
+                                        },
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = SoftChampagneGold
+                                    )
+                                }
+                            }
+
+                            Text(
+                                text = if (isAr) 
+                                    "شارك الرابط لاستقطاب عملاء جدد في شبكتك وتفعيل الإشعارات الصوتية الفورية للأرباح!"
+                                    else "Share the premium referral URL to onboard network partners and secure continuous instant cashflow chimes!",
+                                fontSize = 9.sp,
+                                color = SoftGreyText
+                            )
+                        }
+                    }
+
+                    // 5. High-Tech Dynamic Hologram Laser Grid Canvas
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp)
+                            .border(1.dp, TechCyanGlow.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
+                        colors = CardDefaults.cardColors(containerColor = MidnightNavy),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            // Animated Canvas for Hologram Scanner grid lines
+                            var scanOffset by remember { mutableStateOf(0f) }
+                            LaunchedEffect(Unit) {
+                                while (true) {
+                                    scanOffset += 1.5f
+                                    if (scanOffset > 100f) scanOffset = 0f
+                                    delay(16)
+                                }
+                            }
+
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val w = size.width
+                                val h = size.height
+
+                                // Draw cyber grid
+                                val gridCount = 10
+                                for (i in 0..gridCount) {
+                                    val x = (w / gridCount) * i
+                                    drawLine(
+                                        color = TechCyanGlow.copy(alpha = 0.05f),
+                                        start = androidx.compose.ui.geometry.Offset(x, 0f),
+                                        end = androidx.compose.ui.geometry.Offset(x, h),
+                                        strokeWidth = 1f
+                                    )
+
+                                    val y = (h / gridCount) * i
+                                    drawLine(
+                                        color = TechCyanGlow.copy(alpha = 0.05f),
+                                        start = androidx.compose.ui.geometry.Offset(0f, y),
+                                        end = androidx.compose.ui.geometry.Offset(w, y),
+                                        strokeWidth = 1f
+                                    )
+                                }
+
+                                // Moving laser scan line
+                                val scanY = (h * (scanOffset / 100f))
+                                drawLine(
+                                    color = TechCyanGlow.copy(alpha = 0.4f),
+                                    start = androidx.compose.ui.geometry.Offset(0f, scanY),
+                                    end = androidx.compose.ui.geometry.Offset(w, scanY),
+                                    strokeWidth = 3f
+                                )
+
+                                // Draw a neat target circle in the center
+                                drawCircle(
+                                    color = PremiumRoyalGold.copy(alpha = 0.15f),
+                                    radius = 35f,
+                                    center = androidx.compose.ui.geometry.Offset(w / 2, h / 2)
+                                )
+                                drawCircle(
+                                    color = TechCyanGlow.copy(alpha = 0.3f),
+                                    radius = 12f,
+                                    center = androidx.compose.ui.geometry.Offset(w / 2, h / 2)
+                                )
+                            }
+
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = if (isAr) "موزع عمولات الشبكة المباشر 📡" else "DIRECT DISTRIBUTION COPROCESSOR 📡",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = if (isAr) "مستوى الأمان: تشفير كامل AES-256 وربط مالي لا مركزي" else "SECURITY LEVEL: FIPS-140 LATENCY ACCREDITED SECURED",
+                                    fontSize = 8.sp,
+                                    color = SoftGreyText
+                                )
                             }
                         }
                     }

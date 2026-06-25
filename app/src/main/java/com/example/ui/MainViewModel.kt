@@ -25,6 +25,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import kotlin.random.Random
+import android.media.ToneGenerator
+import android.media.AudioManager
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -35,12 +37,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = HftRepository(db)
 
+    // Tone generator for ultra-realistic tactile live sound effects
+    private var toneGenerator: ToneGenerator? = null
+
     // State bindings from DB
     val liveTrades: StateFlow<List<TradeEntity>> = repository.allTrades
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val newsPipeline: StateFlow<List<NewsPipelineEntity>> = repository.allNews
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Partner Network Matrix States
+    private val _totalAffiliateCommissions = MutableStateFlow(34850.0)
+    val totalAffiliateCommissions: StateFlow<Double> = _totalAffiliateCommissions.asStateFlow()
+
+    private val _partnerUpgradeLevel = MutableStateFlow(1) // Level 1 = 10%, Level 2 = 12%, Level 3 = 15%
+    val partnerUpgradeLevel: StateFlow<Int> = _partnerUpgradeLevel.asStateFlow()
+
+    val isSoundChimesEnabled = MutableStateFlow(true)
+
+    private val _directReferralsCount = MutableStateFlow(12)
+    val directReferralsCount: StateFlow<Int> = _directReferralsCount.asStateFlow()
 
     // Terminal Status Streams
     private val _portfolioBalance = MutableStateFlow(248500.0)
@@ -103,6 +120,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val isApiKeyAvailable = BuildConfig.GEMINI_API_KEY.isNotEmpty() && BuildConfig.GEMINI_API_KEY != "MY_GEMINI_API_KEY"
 
     init {
+        try {
+            toneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         // Run active simulation loop
         viewModelScope.launch {
             startSimulationLoop()
@@ -116,6 +139,60 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Run passive network partner & user affiliate commission loop (10% on simulated other members)
         viewModelScope.launch {
             startAffiliateCommissionLoop()
+        }
+    }
+
+    fun playNotificationSound() {
+        if (!isSoundChimesEnabled.value) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Play beautiful high-tech system beep / digital sound
+                toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun upgradePartnerRank() {
+        val currentLevel = _partnerUpgradeLevel.value
+        if (currentLevel >= 3) return // Already maximum rank (15%)
+
+        val cost = if (currentLevel == 1) 5000.0 else 12000.0
+        val nextLevelName = if (currentLevel == 1) {
+            if (isArabic.value) "شريك ذهبي (عمولة 12%)" else "Gold Partner (12% Fee)"
+        } else {
+            if (isArabic.value) "شريك بلاتيني (عمولة 15%)" else "Platinum Executive (15% Fee)"
+        }
+
+        if (_portfolioBalance.value >= cost) {
+            _portfolioBalance.value -= cost
+            _partnerUpgradeLevel.value = currentLevel + 1
+            _directReferralsCount.value += Random.nextInt(5) + 3 // Boost network size as upgrade reward!
+            
+            playNotificationSound()
+            
+            viewModelScope.launch {
+                _terminalAlert.value = if (isArabic.value) {
+                    "🎉 تهانينا! تم ترقية رتبتك إلى $nextLevelName بنجاح واستقطاع رسوم $${String.format("%,.0f", cost)}"
+                } else {
+                    "🎉 Upgrade Success! Your partner rank is now $nextLevelName. Deducted $${String.format("%,.0f", cost)}"
+                }
+                delay(4000)
+                _terminalAlert.value = null
+            }
+        } else {
+            // Insufficient balance
+            playNotificationSound() // Double beep or single beep
+            viewModelScope.launch {
+                _terminalAlert.value = if (isArabic.value) {
+                    "✖ تنبيه: رصيدك الحالي غير كافٍ لترقية الرتبة ($${String.format("%,.0f", cost)} مطلوبة)"
+                } else {
+                    "✖ Alert: Insufficient funds in portfolio active balance ($${String.format("%,.0f", cost)} required)"
+                }
+                delay(4000)
+                _terminalAlert.value = null
+            }
         }
     }
 
@@ -332,7 +409,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             
             // Realistic large transaction from other members ($2,000 to $45,000)
             val txAmount = (2000 + Random.nextInt(43000)).toDouble()
-            val commission = txAmount * 0.10 // 10%
+            
+            // Dynamic rate based on Elite Partner Level
+            val currentLevel = _partnerUpgradeLevel.value
+            val multiplier = if (currentLevel == 1) 0.10 else if (currentLevel == 2) 0.12 else 0.15
+            val ratePercent = (multiplier * 100).toInt()
+            
+            val commission = txAmount * multiplier
             
             withContext(Dispatchers.IO) {
                 val actionAr = if (isDeposit) "عملية شحن مخصصة" else "عملية سحب وتسييل"
@@ -340,9 +423,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 
                 // 1. Add news notification to the pipeline
                 val newsHeadline = if (isArabic.value) {
-                    "رصد $actionAr من [ $randomUser ] عبر $randomChannel بقيمة $${String.format("%,.0f", txAmount)}. تم قيد عمولة الشريك الفورية 10% (+$${String.format("%,.2f", commission)}) في محفظتك تلقائياً! 💰"
+                    "رصد $actionAr من [ $randomUser ] عبر $randomChannel بقيمة $${String.format("%,.0f", txAmount)}. تم قيد عمولة الشريك الفورية $ratePercent% (+$${String.format("%,.2f", commission)}) في محفظتك تلقائياً! 💰"
                 } else {
-                    "Detected $actionEn from [ $randomUser ] via $randomChannel for $${String.format("%,.0f", txAmount)}. Your instant 10% affiliate commission (+$${String.format("%,.2f", commission)}) credited directly! 💰"
+                    "Detected $actionEn from [ $randomUser ] via $randomChannel for $${String.format("%,.0f", txAmount)}. Your instant $ratePercent% affiliate commission (+$${String.format("%,.2f", commission)}) credited directly! 💰"
                 }
                 
                 repository.insertNews(
@@ -364,24 +447,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         deltaMs = 1,
                         timestamp = System.currentTimeMillis(),
                         source = if (isArabic.value) {
-                            "عمولة شبكة 10%: $actionAr لـ $randomUser"
+                            "عمولة شبكة $ratePercent%: $actionAr لـ $randomUser"
                         } else {
-                            "10% Network Fee: $actionEn from $randomUser"
+                            "$ratePercent% Network Fee: $actionEn from $randomUser"
                         }
                     )
                 )
                 
-                // 3. Update the live portfolio balance
+                // 3. Update the live portfolio balance & cumulative affiliate earnings
                 _portfolioBalance.value += commission
+                _totalAffiliateCommissions.value += commission
                 
-                // 4. Trigger a beautiful flash alert on the screen so they see it instantly!
+                // 4. Play tactile digital coin sound effect!
+                playNotificationSound()
+                
+                // 5. Trigger a beautiful flash alert on the screen so they see it instantly!
                 _lastProfitFlash.value = "+$${String.format("%,.2f", commission)} 🔗"
                 
-                // 5. Briefly show terminal notice
+                // 6. Briefly show terminal notice
                 _terminalAlert.value = if (isArabic.value) {
-                    "🔗 عمولة شبكة: تلقيت مكافأة 10% (+$${String.format("%,.2f", commission)}) من تداول $randomUser"
+                    "🔗 عمولة شبكة: تلقيت مكافأة $ratePercent% (+$${String.format("%,.2f", commission)}) من تداول $randomUser"
                 } else {
-                    "🔗 Network Reward: Received 10% fee (+$${String.format("%,.2f", commission)}) from $randomUser"
+                    "🔗 Network Reward: Received $ratePercent% fee (+$${String.format("%,.2f", commission)}) from $randomUser"
                 }
                 
                 delay(3500)
